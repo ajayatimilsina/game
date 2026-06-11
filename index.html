@@ -52,7 +52,6 @@
             margin: 0 auto; 
         }
         
-        /* 1. Multi-Video Stream Section (Good Vibes UI) */
         .video-section { 
             flex: 2; 
             min-width: 450px; 
@@ -72,7 +71,6 @@
             align-items: center; 
         }
         
-        /* Round Circle Camera Grid */
         .video-grid { 
             display: flex;
             flex-wrap: wrap;
@@ -85,12 +83,11 @@
             box-sizing: border-box; 
         }
 
-        /* The Round Circle Effect */
         .video-player { 
             width: 180px; 
             height: 180px; 
             background: #222b3e; 
-            border-radius: 50%; /* Perfect Circle */
+            border-radius: 50%; 
             overflow: hidden; 
             position: relative; 
             border: 4px solid var(--accent-green);
@@ -124,7 +121,6 @@
             border: 1px solid #334155;
         }
 
-        /* 2. Live Scores Section */
         .score-section { 
             flex: 1; 
             min-width: 320px; 
@@ -147,7 +143,6 @@
 
         .score-title h2 { margin: 0; font-size: 1.4rem; color: #fff; }
         
-        /* Interactive Glowing Buttons */
         button { 
             color: #000; 
             border: none; 
@@ -175,7 +170,6 @@
         .refresh-btn { background: #1f2635; color: #8a99ad; border: 1px solid #3d4d6c; font-size: 12px; padding: 6px 14px; }
         .refresh-btn:hover { background: #2d3748; color: #fff; }
         
-        /* Match Card Vibe Design */
         .match-card { 
             background: #1f2635; 
             padding: 16px; 
@@ -198,7 +192,6 @@
         
         @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
         
-        /* Custom scrollbar for premium look */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: var(--bg-color); }
         ::-webkit-scrollbar-thumb { background: #2d3748; border-radius: 10px; }
@@ -215,206 +208,4 @@
         <div class="video-section">
             <div class="control-panel">
                 <button id="join-btn" class="btn-join" onclick="joinStream()">📱 Turn On Camera</button>
-                <button id="leave-btn" class="btn-leave" onclick="leaveStream()" disabled>Turn Off</button>
-                <span id="stream-status" style="color: #8a99ad; font-size: 13px; margin-left: auto;">Status: Waiting</span>
-            </div>
-            
-            <div id="video-grid" class="video-grid">
-                </div>
-        </div>
-
-        <div class="score-section">
-            <div class="score-title">
-                <h2>🏆 Match Feed</h2>
-                <button class="refresh-btn" onclick="fetchScores()">Refresh</button>
-            </div>
-            <div id="api-status" style="color: var(--accent-green); font-size: 12px; margin-bottom: 12px;">Syncing engine...</div>
-            <div id="match-list"></div>
-        </div>
-    </div>
-
-    <script>
-        // ==========================================
-        // ⚙️ KEYS CONFIGURATION
-        // ==========================================
-        const FOOTBALL_API_KEY = "YOUR_FOOTBALL_DATA_API_KEY_HERE"; 
-        const AGORA_APP_ID = "YOUR_AGORA_APP_ID_HERE";             
-        
-        const FOOTBALL_API_URL = "https://api.football-data.org/v4/matches";
-        const AGORA_CHANNEL = "good_vibes_room";
-
-        let agoraClient = null;
-        let localTracks = { videoTrack: null, audioTrack: null };
-        let remoteUsers = {};
-
-        async function initAgora() {
-            agoraClient = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
-            agoraClient.on("user-published", handleUserPublished);
-            agoraClient.on("user-unpublished", handleUserUnpublished);
-        }
-
-        async function joinStream() {
-            // Setup Native Camera if Agora Key is missing so your iPhone camera still works instantly!
-            if (AGORA_APP_ID === "YOUR_AGORA_APP_ID_HERE") {
-                document.getElementById("stream-status").innerText = "Running local preview mode";
-                runLocalCameraOnly();
-                return;
-            }
-
-            try {
-                if(!agoraClient) await initAgora();
-                document.getElementById("stream-status").innerText = "Connecting...";
-                
-                const uid = await agoraClient.join(AGORA_APP_ID, AGORA_CHANNEL, null, null);
-                
-                localTracks.audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
-                localTracks.videoTrack = await AgoraRTC.createCameraVideoTrack({
-                    encoderConfig: { width: 480, height: 480, frameRate: 30 } // Optimized squared feed for circle
-                });
-
-                const localPlayer = document.createElement("div");
-                localPlayer.id = `user-${uid}`;
-                localPlayer.className = "video-player";
-                localPlayer.innerHTML = `<div class="user-tag">You</div>`;
-                document.getElementById("video-grid").appendChild(localPlayer);
-                
-                localTracks.videoTrack.play(localPlayer);
-                await agoraClient.publish([localTracks.audioTrack, localTracks.videoTrack]);
-
-                document.getElementById("stream-status").innerText = "🟢 Live Room Active";
-                document.getElementById("join-btn").disabled = true;
-                document.getElementById("leave-btn").disabled = false;
-
-            } catch (err) {
-                console.error(err);
-                document.getElementById("stream-status").innerText = "❌ Cam Error";
-            }
-        }
-
-        // Direct Browser iPhone camera initialization fallback
-        async function runLocalCameraOnly() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
-                const localPlayer = document.createElement("div");
-                localPlayer.id = "local-pure-cam";
-                localPlayer.className = "video-player";
-                localPlayer.innerHTML = `<div class="user-tag">iPhone Cam</div>`;
-                
-                const nativeVideoElement = document.createElement("video");
-                nativeVideoElement.srcObject = stream;
-                nativeVideoElement.autoplay = true;
-                nativeVideoElement.playsInline = true;
-                nativeVideoElement.style.width = "100%";
-                nativeVideoElement.style.height = "100%";
-                nativeVideoElement.style.objectFit = "cover";
-                
-                localPlayer.appendChild(nativeVideoElement);
-                document.getElementById("video-grid").appendChild(localPlayer);
-                
-                document.getElementById("join-btn").disabled = true;
-                document.getElementById("leave-btn").disabled = false;
-            } catch (e) {
-                alert("Camera access denied. Please open via HTTPS link on your iPhone Safari browser!");
-            }
-        }
-
-        async function handleUserPublished(user, mediaType) {
-            const id = user.uid;
-            remoteUsers[id] = user;
-            await agoraClient.subscribe(user, mediaType);
-
-            if (mediaType === "video") {
-                const existingPlayer = document.getElementById(`user-${id}`);
-                if (existingPlayer) existingPlayer.remove();
-
-                const remotePlayer = document.createElement("div");
-                remotePlayer.id = `user-${id}`;
-                remotePlayer.className = "video-player";
-                remotePlayer.innerHTML = `<div class="user-tag">Friend ${id}</div>`;
-                document.getElementById("video-grid").appendChild(remotePlayer);
-
-                user.videoTrack.play(remotePlayer);
-            }
-            if (mediaType === "audio") user.audioTrack.play();
-        }
-
-        function handleUserUnpublished(user) {
-            const id = user.uid;
-            delete remoteUsers[id];
-            const playerTrack = document.getElementById(`user-${id}`);
-            if (playerTrack) playerTrack.remove();
-        }
-
-        async function leaveStream() {
-            if (localTracks.videoTrack) { localTracks.videoTrack.stop(); localTracks.videoTrack.close(); }
-            if (localTracks.audioTrack) { localTracks.audioTrack.stop(); localTracks.audioTrack.close(); }
-            if (agoraClient) await agoraClient.leave();
-
-            const localPure = document.getElementById("local-pure-cam");
-            if(localPure) localPure.remove();
-
-            document.getElementById("video-grid").innerHTML = "";
-            document.getElementById("stream-status").innerText = "Status: Disconnected";
-            document.getElementById("join-btn").disabled = false;
-            document.getElementById("leave-btn").disabled = true;
-        }
-
-        // ==========================================
-        // ⚽ FOOTBALL SCORE LOGIC
-        // ==========================================
-        async function fetchScores() {
-            const statusDiv = document.getElementById('api-status');
-            if (FOOTBALL_API_KEY === "YOUR_FOOTBALL_DATA_API_KEY_HERE") {
-                statusDiv.innerHTML = "✨ Vibe Mode: Online Demo Data";
-                showMockData();
-                return;
-            }
-            try {
-                const response = await fetch(FOOTBALL_API_URL, { headers: { 'X-Auth-Token': FOOTBALL_API_KEY } });
-                const data = await response.json();
-                statusDiv.innerHTML = "⚡ Live Feed Synced";
-                displayMatches(data.matches);
-            } catch (error) {
-                showMockData();
-            }
-        }
-
-        function displayMatches(matches) {
-            const matchList = document.getElementById('match-list');
-            matchList.innerHTML = "";
-            if (!matches || matches.length === 0) {
-                matchList.innerHTML = "<p style='text-align:center; padding:20px; color:#555;'>No matches today.</p>";
-                return;
-            }
-            matches.slice(0, 12).forEach(match => {
-                const isLive = match.status === "IN_PLAY" || match.status === "PAUSED";
-                const statusClass = isLive ? "match-status status-live" : "match-status";
-                const statusText = isLive ? "💥 LIVE MATCH" : match.status;
-
-                matchList.innerHTML += `
-                    <div class="match-card">
-                        <div class="teams">
-                            <span class="${statusClass}">${statusText}</span>
-                            <div class="team-name">⚽ ${match.homeTeam.name}</div>
-                            <div class="team-name">⚽ ${match.awayTeam.name}</div>
-                        </div>
-                        <div class="scores">
-                            <div>${match.score.fullTime.home !== null ? match.score.fullTime.home : 0}</div>
-                            <div>${match.score.fullTime.away !== null ? match.score.fullTime.away : 0}</div>
-                        </div>
-                    </div>`;
-            });
-        }
-
-        function showMockData() {
-            displayMatches([
-                { status: "IN_PLAY", homeTeam: { name: "Mexico 🇲🇽" }, awayTeam: { name: "South Africa 🇿🇦" }, score: { fullTime: { home: 1, away: 0 } } },
-                { status: "TIMED", homeTeam: { name: "Japan 🇯🇵" }, awayTeam: { name: "Netherlands 🇳🇱" }, score: { fullTime: { home: 0, away: 0 } } }
-            ]);
-        }
-
-        fetchScores();
-        setInterval(fetchScores, 60000);
-    </script>
-</body>
-</html>
+                <button id="leave-btn" class="btn-leave" onclick="leaveStream()" disabled>
